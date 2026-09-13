@@ -1,5 +1,6 @@
 """FastAPI application for the URL shortener."""
 
+from collections import Counter
 from collections.abc import Iterator
 from contextlib import asynccontextmanager
 
@@ -10,7 +11,12 @@ from sqlalchemy.orm import Session
 from backend.config import BASE_URL
 from backend.database import SessionLocal, init_db
 from backend.models import Url
-from backend.schemas import ShortenRequest, ShortenResponse
+from backend.schemas import (
+    ClicksByDay,
+    ShortenRequest,
+    ShortenResponse,
+    StatsResponse,
+)
 from backend.services import create_url, register_click
 
 
@@ -43,6 +49,27 @@ def shorten_url(payload: ShortenRequest, db: Session = Depends(get_db)) -> Short
         short_code=url.short_code,
         short_url=f"{BASE_URL.rstrip('/')}/{url.short_code}",
         long_url=url.long_url,
+    )
+
+
+# API routes first so the catch-all below never shadows them.
+@app.get("/api/stats/{short_code}", response_model=StatsResponse)
+def get_stats(short_code: str, db: Session = Depends(get_db)) -> StatsResponse:
+    url = db.query(Url).filter(Url.short_code == short_code).first()
+    if url is None:
+        raise HTTPException(status_code=404, detail="Short URL not found")
+    clicks = url.clicks  # via Url.clicks <-> Click.url relationship
+    last_clicked_at = max((c.clicked_at for c in clicks), default=None)
+    per_day = Counter(c.clicked_at.date().isoformat() for c in clicks)
+    return StatsResponse(
+        short_code=url.short_code,
+        long_url=url.long_url,
+        created_at=url.created_at,
+        click_count=url.click_count,
+        last_clicked_at=last_clicked_at,
+        clicks_by_day=[
+            ClicksByDay(date=date, clicks=per_day[date]) for date in sorted(per_day)
+        ],
     )
 
 
