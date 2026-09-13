@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import Session
 
-from backend.models import Url
+from backend.models import Click, Url
 from backend.utils import encode_base62, normalize_url
 
 
@@ -27,3 +27,20 @@ def create_url(db: Session, long_url: str) -> Url:
         raise
     db.refresh(url)
     return url
+
+
+def register_click(
+    db: Session, url: Url, ip_address: str | None, user_agent: str | None
+) -> None:
+    """Record a click and bump the counter in a single transaction.
+
+    Simple read/increment/write is fine for this MVP; a future step
+    could use an atomic UPDATE (click_count = click_count + 1).
+    """
+    try:
+        db.add(Click(url_id=url.id, ip_address=ip_address, user_agent=user_agent))
+        url.click_count += 1
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
