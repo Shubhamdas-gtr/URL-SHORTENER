@@ -13,6 +13,8 @@ import streamlit as st
 API_BASE = "http://localhost:8000"
 SHORTEN_URL = f"{API_BASE}/api/shorten"
 STATS_URL_TEMPLATE = API_BASE + "/api/stats/{short_code}"
+URLS_URL = f"{API_BASE}/api/urls"
+RECENT_LIMIT = 10
 REQUEST_TIMEOUT = 10
 
 BACKEND_DOWN_MESSAGE = (
@@ -202,6 +204,58 @@ def _analytics_section() -> None:
                     st.error(_backend_detail(response, "Something went wrong. Please try again later."))
 
 
+def _recent_section() -> None:
+    st.header("Recent URLs")
+    if st.button("Refresh Recent URLs"):
+        pass  # Streamlit reruns on click, so the list below is re-fetched.
+
+    try:
+        response = requests.get(
+            URLS_URL, params={"limit": RECENT_LIMIT}, timeout=REQUEST_TIMEOUT
+        )
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        st.error(BACKEND_DOWN_MESSAGE)
+    except requests.exceptions.RequestException:
+        st.error("Could not reach the backend. Please try again later.")
+    else:
+        if response.status_code == 500:
+            st.error("The backend encountered an error. Please try again later.")
+        elif response.status_code != 200:
+            st.error(_backend_detail(response, "Something went wrong. Please try again later."))
+        else:
+            try:
+                data = response.json()
+            except ValueError:
+                st.error("Received an unexpected response from the backend.")
+            else:
+                if not isinstance(data, list):
+                    st.error("Received an unexpected response from the backend.")
+                elif not data:
+                    st.info("No URLs yet. Shorten a URL above to see it here.")
+                else:
+                    for item in data:
+                        if not isinstance(item, dict):
+                            continue
+                        short_code = item.get("short_code")
+                        short_url = item.get("short_url")
+                        long_url = item.get("long_url")
+                        created_at = item.get("created_at")
+                        if not short_code or not short_url or not long_url:
+                            continue
+                        st.write("Short code:")
+                        st.code(short_code)
+                        st.write("Original URL:")
+                        st.write(long_url)
+                        st.write(f"Created At: {created_at}")
+                        st.write("Short URL:")
+                        st.write(short_url)
+                        st.link_button(
+                            "Open short URL",
+                            short_url,
+                            key=f"open_recent_{short_code}",
+                        )
+
+
 def main() -> None:
     st.set_page_config(page_title="URL Shortener", layout="centered")
     st.title("URL Shortener")
@@ -214,6 +268,8 @@ def main() -> None:
     _shorten_section()
     st.divider()
     _analytics_section()
+    st.divider()
+    _recent_section()
 
 
 if __name__ == "__main__":

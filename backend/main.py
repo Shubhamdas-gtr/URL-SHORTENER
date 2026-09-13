@@ -4,7 +4,7 @@ from collections import Counter
 from collections.abc import Iterator
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,7 @@ from backend.schemas import (
     ShortenRequest,
     ShortenResponse,
     StatsResponse,
+    UrlHistoryItem,
 )
 from backend.services import create_url, register_click
 
@@ -71,6 +72,23 @@ def get_stats(short_code: str, db: Session = Depends(get_db)) -> StatsResponse:
             ClicksByDay(date=date, clicks=per_day[date]) for date in sorted(per_day)
         ],
     )
+
+
+@app.get("/api/urls", response_model=list[UrlHistoryItem])
+def list_urls(
+    limit: int = Query(default=10, ge=1, le=50),
+    db: Session = Depends(get_db),
+) -> list[UrlHistoryItem]:
+    urls = db.query(Url).order_by(Url.created_at.desc()).limit(limit).all()
+    return [
+        UrlHistoryItem(
+            short_code=url.short_code,
+            short_url=f"{BASE_URL.rstrip('/')}/{url.short_code}",
+            long_url=url.long_url,
+            created_at=url.created_at,
+        )
+        for url in urls
+    ]
 
 
 # Defined after /api/* so fixed routes (docs, openapi, api) match first.

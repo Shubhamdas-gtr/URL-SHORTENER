@@ -27,3 +27,10 @@ class StatsResponse(BaseModel):
     click_count: int
     last_clicked_at: datetime | None
     clicks_by_day: list[ClicksByDay]
+
+
+class UrlHistoryItem(BaseModel):
+    short_code: str
+    short_url: str
+    long_url: str
+    created_at: datetime
