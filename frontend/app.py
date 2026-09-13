@@ -5,12 +5,15 @@ Never touches SQLite directly.
 """
 
 import io
+import os
 
 import qrcode
 import requests
 import streamlit as st
 
-API_BASE = "http://localhost:8000"
+# Backend API base URL. Set API_BASE_URL in deployment (Streamlit secrets/env);
+# it falls back to localhost for local development.
+API_BASE = os.environ.get("API_BASE_URL", "http://localhost:8000")
 SHORTEN_URL = f"{API_BASE}/api/shorten"
 STATS_URL_TEMPLATE = API_BASE + "/api/stats/{short_code}"
 URLS_URL = f"{API_BASE}/api/urls"
