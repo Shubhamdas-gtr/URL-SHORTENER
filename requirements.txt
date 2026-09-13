@@ -5,3 +5,4 @@ pydantic
 streamlit
 requests
 qrcode[pil]
+httpx

@@ -11,6 +11,3 @@ SQLALCHEMY_DATABASE_URL: str = f"sqlite:///{DB_PATH}"
 
 # Base URL used to build short links, e.g. http://localhost:8000/Ab3xYz
 BASE_URL: str = "http://localhost:8000"
-
-# Length of the generated short code.
-CODE_LENGTH: int = 6
